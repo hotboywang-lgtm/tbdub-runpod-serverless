@@ -37,7 +37,17 @@ INFERENCE_LOCK = FileLock(str(CACHE_ROOT / "videoretalking-inference.lock"))
 
 
 def _run(command: list[str], *, cwd: Path | None = None) -> None:
-    subprocess.run(command, check=True, cwd=str(cwd) if cwd else None)
+    result = subprocess.run(
+        command,
+        cwd=str(cwd) if cwd else None,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        stderr = (result.stderr or result.stdout or "no command output").strip()
+        raise RuntimeError(
+            f"Command failed ({result.returncode}): {' '.join(command)}\n{stderr[-8000:]}"
+        )
 
 
 def _safe_id(value: str, field: str) -> str:
@@ -93,9 +103,11 @@ def _normalize_video(source: Path, destination: Path, duration: float) -> None:
     _run([
         "ffmpeg", "-y", "-loglevel", "error", "-i", str(source),
         "-t", f"{duration:.3f}",
-        "-vf", "fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2,setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
+        "-vf", "fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2",
         "-an", "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-        "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(destination),
+        "-pix_fmt", "yuv420p", "-color_range", "tv", "-colorspace", "bt709",
+        "-color_primaries", "bt709", "-color_trc", "bt709",
+        "-movflags", "+faststart", str(destination),
     ])
 
 
@@ -110,8 +122,9 @@ def _normalize_audio(source: Path, destination: Path, duration: float) -> None:
 def _finalize_video(source: Path, destination: Path) -> None:
     _run([
         "ffmpeg", "-y", "-loglevel", "error", "-i", str(source),
-        "-vf", "setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
         "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+        "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709",
+        "-color_trc", "bt709",
         "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(destination),
     ])
 
