@@ -18,7 +18,8 @@ WORKDIR /app/TBDub
 
 RUN pip install --upgrade pip setuptools wheel \
     && pip install -r requirements.txt \
-    && pip install runpod boto3 filelock requests
+    && pip install runpod boto3 filelock requests \
+    && pip install --force-reinstall protobuf==4.25.8
 
 # Bake the Student model and all runtime dependencies into the image so a
 # request never waits for model downloads after entering the RunPod queue.
