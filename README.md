@@ -41,3 +41,5 @@ object storage, and returns a presigned `video_url`.
 
 Recommended RunPod settings: RTX 4090 24 GB, max workers 1, active workers 0,
 idle timeout 30 seconds, FlashBoot enabled.
+
+The image pins protobuf 4.x for MediaPipe compatibility.
