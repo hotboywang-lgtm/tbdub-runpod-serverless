@@ -104,7 +104,7 @@ def _normalize_video(source: Path, destination: Path, duration: float) -> None:
         "ffmpeg", "-y", "-loglevel", "error", "-i", str(source),
         "-t", f"{duration:.3f}",
         "-vf", "fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2",
-        "-an", "-c:v", "libx264", "-preset", "fast", "-crf", "18",
+        "-an", "-c:v", "mpeg4", "-q:v", "2",
         "-pix_fmt", "yuv420p", "-color_range", "tv", "-colorspace", "bt709",
         "-color_primaries", "bt709", "-color_trc", "bt709",
         "-movflags", "+faststart", str(destination),
@@ -122,7 +122,7 @@ def _normalize_audio(source: Path, destination: Path, duration: float) -> None:
 def _finalize_video(source: Path, destination: Path) -> None:
     _run([
         "ffmpeg", "-y", "-loglevel", "error", "-i", str(source),
-        "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+        "-c:v", "mpeg4", "-q:v", "2", "-pix_fmt", "yuv420p",
         "-color_range", "tv", "-colorspace", "bt709", "-color_primaries", "bt709",
         "-color_trc", "bt709",
         "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(destination),
