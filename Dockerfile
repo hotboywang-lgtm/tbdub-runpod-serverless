@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app/video-retalking
 COPY . /app/video-retalking
 
-RUN python -m pip install --upgrade pip setuptools wheel \
+RUN python -m pip install --upgrade pip "setuptools<81" wheel \
     && python -m pip install -r requirements.txt \
     && python -m pip install runpod boto3 requests filelock scipy==1.10.1 numba==0.57.1
 
