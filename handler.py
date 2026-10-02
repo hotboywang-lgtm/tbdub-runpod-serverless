@@ -90,6 +90,24 @@ def _download(url: str, destination: Path) -> tuple[str, int]:
     return digest.hexdigest(), total
 
 
+def _download_s3_object(key: str, destination: Path) -> tuple[str, int]:
+    if not isinstance(key, str) or not key or len(key) > 1024:
+        raise ValueError("audio_object_key must be a non-empty OSS object key")
+    bucket = os.environ["S3_BUCKET"]
+    client = _s3_client()
+    metadata = client.head_object(Bucket=bucket, Key=key)
+    total = int(metadata.get("ContentLength", 0))
+    if total > MAX_DOWNLOAD_BYTES:
+        raise ValueError("OSS object exceeds MAX_DOWNLOAD_BYTES")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    client.download_file(bucket, key, str(destination))
+    digest = hashlib.sha256()
+    with destination.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest(), destination.stat().st_size
+
+
 def _probe_duration(path: Path) -> float:
     result = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration",
@@ -159,8 +177,9 @@ def handler(job: dict) -> dict:
     avatar_id = _safe_id(payload.get("avatar_id", "default"), "avatar_id")
     video_url = payload.get("source_video_url")
     audio_url = payload.get("audio_url")
-    if not video_url or not audio_url:
-        raise ValueError("source_video_url and audio_url are required")
+    audio_object_key = payload.get("audio_object_key")
+    if not video_url or not (audio_url or audio_object_key):
+        raise ValueError("source_video_url and either audio_url or audio_object_key are required")
     max_duration = _bounded_int(payload, "max_duration_seconds", 5, 1, 60)
     refresh_avatar = bool(payload.get("refresh_avatar", False))
 
@@ -175,7 +194,10 @@ def handler(job: dict) -> dict:
 
     try:
         download_started = time.perf_counter()
-        _, audio_bytes = _download(audio_url, audio_download)
+        if audio_object_key:
+            _, audio_bytes = _download_s3_object(audio_object_key, audio_download)
+        else:
+            _, audio_bytes = _download(audio_url, audio_download)
         audio_duration = min(_probe_duration(audio_download), float(max_duration))
         _normalize_audio(audio_download, audio_wav, audio_duration)
 
